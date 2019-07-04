@@ -1,5 +1,5 @@
 #
-# This is the server logic of a Shiny web application. You can run the 
+# This is a template project for WKSEATEC DATRAS QC apps. You can run the 
 # application by clicking 'Run App' above.
 #
 # Find out more about building applications with Shiny here:
@@ -13,8 +13,7 @@ shinyServer(function(input, output, session) {
 
   ## STANDARD REACTIVE DATRAS DATA START
   
-  # Use reactive poll so that our data will be updated when the data or filters are updated
-
+  # Use reactivePoll so that our data will be updated when the data or filter files are updated
   datrasData <- reactivePoll(1000, session,
                                  # This function returns the time that files were last modified
                                  checkFunc = function() {
@@ -111,68 +110,17 @@ shinyServer(function(input, output, session) {
   
   ## STANDARD REACTIVE DATRAS DATA END
   
+  # Add your Shiny app code
   
-  # Simple Length - Weight plot showing outliers
+  # This is just a simple example plot to show the number of CA records
   output$mainPlot <- renderPlotly({
     
+    countBySpecies <- aggregate(RecordType ~ ScientificName_WoRMS + Sex, data = CA(), length)
     
-    f<- datrasFilters()
+    countBySpecies$NameAndSex <- paste(countBySpecies$ScientificName_WoRMS,countBySpecies$Sex,sep="-")
     
-    filterString <- ''
-    
-    # Get all the filter values
-    for (i in colnames(f)){
-      if (i!='X'){
-        filterString <- paste(filterString,i,":", f[[i]], ",", sep ="" )
-      }
-    }
-    print(filterString)  
-  
-    #CA <- dataToUse[["CA"]]
-    
-    PlotTitle <- ""
-    
-    # get the title for the plot
-    SpeciesNames <- unique(as.character(CA()[,"ScientificName_WoRMS"]))
-    #print(SpeciesNames)
-    if (length(SpeciesNames)> 1){
-      PlotTitle <- "Multiple species"
-    } else {
-      PlotTitle<-SpeciesNames
-    }
-    
-    # Only try and plot the chart if we have single species with lengths and weights
-    #if (PlotTitle!="Multiple species" &&  sum(!is.na(CA$IndWgt)) >0 && sum(!is.na(CA$LngtClas)) >0 ) {
-    if (sum(!is.na(CA()$IndWgt)) >0 && sum(!is.na(CA()$LngtClas)) >0 ) {
-        
-      attach(CA())
-      
-      exponential.model <- lm(log(IndWgt)~ log(LngtClas))
-      #summary(exponential.model)
-      
-      lenvalues <- seq(min(LngtClas), max(LngtClas), 10)
-      WeightsModelled <- exp(predict(exponential.model, list(LngtClas=lenvalues)))
-      
-      WeightModel <- exp(predict(exponential.model, LngtClas=LngtClas))
-      Diffs <- abs(IndWgt - WeightModel)
-      
-      detach(CA())
-      
-      IQRMutiplier = 3
-      
-      outliers <- CA()[Diffs > median(Diffs) + IQRMutiplier*IQR(Diffs),]
-
-      p <- plot_ly(x = lenvalues, y = WeightsModelled, type="scatter",mode = "lines", name = 'Fit') %>%
-        add_trace(data = CA(), x = ~LngtClas, y = ~IndWgt, type="scatter", name = 'Data', mode = "markers", marker=list(color="black", size=3)) %>%
-        add_trace(data = outliers, x = ~LngtClas, y = ~IndWgt, type="scatter", name = 'Outliers', mode = "markers", marker=list(color="rgba(255, 182, 193, .9)'", size=7, line=list(color="rgba(152, 0, 0, .8)", width=2))) %>%
-        layout(title = PlotTitle, xaxis = list(title = 'Length Class'),yaxis = list(title = 'Weight'))
-      
-
-    } else {
-      
-      p<- plotly_empty()  %>%
-        layout(title = PlotTitle, xaxis = list(title = 'Length Class'),yaxis = list(title = 'Weight'))
-    }
+    p<-plot_ly(data=countBySpecies, x = ~NameAndSex, y = ~RecordType, type = 'bar') %>% 
+        layout(title = 'Biological record counts', xaxis = list(title = 'Species-Sex'),yaxis = list(title = 'Record count'))
     
   })
   
